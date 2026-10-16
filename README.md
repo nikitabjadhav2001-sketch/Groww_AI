@@ -133,7 +133,6 @@ Official and regulatory sources used for the fee explanation:
 1. Nippon India Mutual Fund investor education, Exit Load: https://mf.nipponindiaim.com/investoreducation/financial-term-of-the-week-exit-load
 2. SEBI board meeting paper (September 2025), exit load limits: https://www.sebi.gov.in/sebi_data/meetingfiles/sep-2025/1758696854726_1.pdf
 3. Edelweiss Mutual Fund, What is exit load: https://edelweissmf.com/investor-insights/mutual-fund-investment-tips-and-articles/what-is-exit-load-in-mutual-funds
-4. *(Add your scheme's Scheme Information Document link here)*
 
 ---
 
