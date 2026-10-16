@@ -1,0 +1,580 @@
+{
+  "name": "Groww_AI",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "812063eb-3c4d-4e07-a12f-462bfd38efa6",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "url": "https://raw.githubusercontent.com/nikitabjadhav2001-sketch/Groww_AI/refs/heads/main/Reviews.csv",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        224,
+        0
+      ],
+      "id": "c102d298-396a-41f2-9ed1-6db7dbdf22a4",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "options": {
+          "headerRow": true
+        }
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        448,
+        0
+      ],
+      "id": "bd524d5b-4b4e-438e-95d5-0e7417e1db54",
+      "name": "Extract Reviews"
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map(i => i.json);\n\nconst reviews = rows\n  .filter(r => r.Review && String(r.Review).trim().length > 15)\n  .map((r, i) =>\n    `[${i + 1}] (${r.Date}, ${r.Rating}★, ${r.User}) ` +\n    String(r.Review).replace(/\\s+/g, ' ').trim()\n  )\n  .join('\\n');\n\nreturn [{ json: { reviews_text: reviews, review_count: rows.length } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        0
+      ],
+      "id": "dd8bb0a2-5c63-4288-8ea9-0dcdb6473a16",
+      "name": "Prepare Reviews"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a product analyst. Analyze the customer reviews below.\n\nRules:\n1. Cluster the reviews into a MAXIMUM of 5 themes. For each theme give a name,\n   an approximate review count, and a one-line summary.\n2. Select the TOP 3 themes by frequency.\n3. Extract exactly 3 REAL user quotes. Copy them word for word from the reviews.\n   Never paraphrase or invent a quote.\n4. Identify ONE recurring confusion or pain point related to a fee or charge.\n   Give the fee name, a short summary of the confusion, and one verbatim quote.\n\nReturn only the JSON in the required format.\n\nREVIEWS:\n{{ $json.reviews_text }}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "You are a precise analyst. Use only information present in the reviews"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        896,
+        0
+      ],
+      "id": "46f4b750-5f09-49dc-a93b-a6ba86534c93",
+      "name": "Review Intelligence"
+    },
+    {
+      "parameters": {
+        "model": "qwen/qwen3.8-27b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        784,
+        208
+      ],
+      "id": "0fc5022a-53e7-4c47-922c-f88882b98ce3",
+      "name": "Groq Chat Model",
+      "credentials": {
+      "groqApi": {
+      "id": "",
+      "name": "Groq account"
+  }
+}
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"themes\": [\n    { \"name\": \"App performance\", \"count\": 12, \"summary\": \"Short summary\" }\n  ],\n  \"top_themes\": [\"Theme 1\", \"Theme 2\", \"Theme 3\"],\n  \"quotes\": [\"verbatim quote 1\", \"verbatim quote 2\", \"verbatim quote 3\"],\n  \"fee_issue\": {\n    \"fee_name\": \"Exit load\",\n    \"confusion_summary\": \"Short summary of the confusion\",\n    \"supporting_quote\": \"verbatim quote\"\n  }\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1040,
+        208
+      ],
+      "id": "473cdd16-e85c-42ad-97fe-e94a90825f0e",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Write a weekly product pulse of MAXIMUM 250 words using ONLY this data:\n\n{{ JSON.stringify($json.output) }}\n\nUse exactly this structure:\n\n**Top Themes**\n- 3 bullets\n\n**Supporting User Quotes**\n- the 3 quotes, word for word\n\n**Key Observation**\n- 2-3 sentences on what is going wrong or trending\n\n**Action Ideas**\n1. ...\n2. ...\n3. ...\n\nDo not add information that is not in the data. Stay under 250 words.",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1216,
+        -240
+      ],
+      "id": "c1157913-4289-4bfd-9d6c-9922994ab7f8",
+      "name": "Weekly Product Pulse"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-20b",
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        1216,
+        -48
+      ],
+      "id": "a86c34ec-da61-475f-9f5b-8028377d96d3",
+      "name": "Groq Chat Model1",
+      "credentials": {
+        "groqApi": {
+          "id": "lwi9kEq9DaTB4MVF",
+          "name": "Groq account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f7cc0964-a0f4-4104-9d4f-fc35de17d985",
+              "name": "weekly_pulse",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        1568,
+        -240
+      ],
+      "id": "99aec3f1-5f74-4c24-9ddb-37bd6d78a27c",
+      "name": "Format Weekly Pulse"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Fee in question: {{ $json.output.fee_issue.fee_name }}\nConfusion seen in user reviews: {{ $json.output.fee_issue.confusion_summary }}\n\nWrite a customer-support explanation of this fee.\n\nRules:\n- MAXIMUM 6 bullet points.\n- Neutral, facts-only tone. No marketing language and no promises.\n- Cover what the fee is, when it applies, how it is calculated, and where the rate for a specific scheme is stated (in the scheme's official documents).\n- Describe only how exit load works in general, based on the sources below.\n- Do NOT say anything about what any app shows or where an app lists information.\n- Do NOT mention Key Information Memorandum (KIM). Refer only to the Scheme Information Document.\n- Mention SEBI only to say it sets a maximum limit on exit load. Do not state the limit.\n- For SIPs, say only that each instalment is treated as a separate purchase with its own holding period.\n- Do NOT use bold, asterisks or any markdown symbols anywhere.\n- Do NOT put URLs inside the bullets. Put them only in the \"Sources:\" list.\n- If a fact is not supported by these sources, do not state it.\n\nOutput format:\n- (up to 6 bullets, each starting with \"- \")\n\nSources:\n1. https://mf.nipponindiaim.com/investoreducation/financial-term-of-the-week-exit-load\n2. https://www.sebi.gov.in/sebi_data/meetingfiles/sep-2025/1758696854726_1.pdf\n\nThe final line of your answer must be exactly: Last checked: {{ $now.toFormat('yyyy-MM-dd') }}",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1232,
+        208
+      ],
+      "id": "f35ae8ed-5d1a-493c-90ac-5764b232f479",
+      "name": "Fee Explainer"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-120b",
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        1248,
+        432
+      ],
+      "id": "2cd9585f-3cd1-4d67-ab4c-e94ddf5ffbae",
+      "name": "Groq Chat Model2",
+      "credentials": {
+        "groqApi": {
+          "id": "lwi9kEq9DaTB4MVF",
+          "name": "Groq account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1d535cbf-4047-4a83-b4b2-9fdb92fcdb8c",
+              "name": "fee_explanation",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        1600,
+        208
+      ],
+      "id": "5d50a53d-6c74-41ad-93af-1e35928485cc",
+      "name": "Format Fee Explainer"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1872,
+        0
+      ],
+      "id": "2cc8d1b5-84d8-4cca-88c7-15e14e09596b",
+      "name": "Merge Outputs"
+    },
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "sendTo": "nikita.b.jadhav2001@gmail.com",
+        "subject": "Approval needed: Weekly Product Pulse + Fee Clarification",
+        "message": "=Please review the outputs below. Nothing is saved or drafted until you approve.\n\nWEEKLY PULSE\n{{ $json.weekly_pulse }}\n\nFEE EXPLANATION\n{{ $json.fee_explanation }}",
+        "approvalOptions": {
+          "values": {
+            "approvalType": "double"
+          }
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2064,
+        0
+      ],
+      "id": "ff8e04ac-08cf-428e-8862-85898398d25c",
+      "name": "Human Approval",
+      "webhookId": "9e25c59d-e767-453e-a6eb-67b1aa29e22e",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "iL3TtiXKTwDPSoqO",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "1d243cc2-b7c6-42b2-b286-79d5ad606f7a",
+              "leftValue": "={{ $json.data.approved }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2256,
+        0
+      ],
+      "id": "756b4c21-f37f-4a42-a0eb-cdbb1429d3d5",
+      "name": "Approval Check"
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "=   Weekly Product Pulse + Customer Clarification — {{ $now.toFormat('yyyy-MM-dd') }}",
+        "message": "=   WEEKLY PRODUCT PULSE    {{ $('Merge Outputs').first().json.weekly_pulse }}     CUSTOMER SUPPORT SNIPPET (Fee Explanation)    {{ $('Merge Outputs').first().json.fee_explanation }}",
+        "options": {
+          "sendTo": "nikita.b.jadhav2001@gmail.com"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2688,
+        -16
+      ],
+      "id": "21abcaa7-04c5-4c29-8c51-2280291cfc06",
+      "name": "Create Gmail Draft",
+      "webhookId": "4ba20a15-d22c-41bf-956c-65147d0a96e9",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "iL3TtiXKTwDPSoqO",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentURL": "https://docs.google.com/document/d/1IxIk7ht-cakGeHjLpzSCV_Zw7D-CPA_kQRZjMonZzH4/edit?pli=1&tab=t.0",
+        "actionsUi": {
+          "actionFields": [
+            {
+              "action": "insert",
+              "text": "=Date: {{ $now.toFormat('yyyy-MM-dd') }}\n\nTop themes: {{ $('Review Intelligence').first().json.output.top_themes.join(', ') }}\n\nWeekly pulse:\n{{ $('Merge Outputs').first().json.weekly_pulse }}\n\nIdentified fee issue: {{ $('Review Intelligence').first().json.output.fee_issue.fee_name }} - {{ $('Review Intelligence').first().json.output.fee_issue.confusion_summary }}\n\nExplanation bullets:\n{{ $('Merge Outputs').first().json.fee_explanation }}\n\nSource links:\nhttps://mf.nipponindiaim.com/investoreducation/financial-term-of-the-week-exit-load\nhttps://www.sebi.gov.in/sebi_data/meetingfiles/sep-2025/1758696854726_1.pdf\n\n------------------------------"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        2480,
+        -16
+      ],
+      "id": "752b69a5-de2a-4da3-99bc-48469cc7ae51",
+      "name": "Update a document",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "7xMNVWb3g3dJtCsy",
+          "name": "Google Docs account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Extract Reviews",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Reviews": {
+      "main": [
+        [
+          {
+            "node": "Prepare Reviews",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Reviews": {
+      "main": [
+        [
+          {
+            "node": "Review Intelligence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Review Intelligence",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Review Intelligence",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Review Intelligence": {
+      "main": [
+        [
+          {
+            "node": "Weekly Product Pulse",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fee Explainer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Weekly Product Pulse",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Weekly Product Pulse": {
+      "main": [
+        [
+          {
+            "node": "Format Weekly Pulse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Weekly Pulse": {
+      "main": [
+        [
+          {
+            "node": "Merge Outputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Fee Explainer",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fee Explainer": {
+      "main": [
+        [
+          {
+            "node": "Format Fee Explainer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Fee Explainer": {
+      "main": [
+        [
+          {
+            "node": "Merge Outputs",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Outputs": {
+      "main": [
+        [
+          {
+            "node": "Human Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Human Approval": {
+      "main": [
+        [
+          {
+            "node": "Approval Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Approval Check": {
+      "main": [
+        [
+          {
+            "node": "Update a document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update a document": {
+      "main": [
+        [
+          {
+            "node": "Create Gmail Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "1e37d9f0-44a4-456e-b536-86f33b64d78e",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "44b67af4a27738ce330214aafa129ecc3932ee4f708ef4647f376c3145897917"
+  },
+  "nodeGroups": [],
+  "id": "QtKFvOdQ0OrUREgE",
+  "tags": []
+}
